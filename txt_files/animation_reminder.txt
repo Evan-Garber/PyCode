@@ -1,0 +1,2 @@
+For the saved animation the duration is going to be frames * (1 / fps) (in seconds)
+For the display animation the duration is going to be frames * interval / 1000 (in seconds)
