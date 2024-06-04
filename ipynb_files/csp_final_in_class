@@ -1,0 +1,186 @@
+#From in class
+
+import pygame
+
+pygame.init()
+
+screenWidth = 500
+screenHeight = 500
+
+win = pygame.display.set_mode((screenWidth,screenHeight))
+
+pygame.display.set_caption("Hello World")
+
+run = True
+%matplotlib notebook
+import numpy as np
+from scipy import integrate
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import matplotlib.animation as animation
+
+#constants in kg and m
+g = 9.8
+m1 = 10
+m2 = 10
+L1 = 60
+L2 = 60
+L = L1 + L2
+
+#initial conditions: [theta1, omega1, theta2, omega2]
+i_init = np.radians([-100, 0, 30, 0]) 
+
+#start and stop times in seconds
+t = [0,100]
+
+def f(t, y):
+    
+    theta1 = y[0]
+    omega1 = y[1]
+    theta2 = y[2]
+    omega2 = y[3]
+
+    dtdt1 = omega1   
+    dwdt1 = (-g * (2 * m1 + m2) * np.sin(theta1) - m2 * g * np.sin(theta1 - 2 * theta2) - 2 * np.sin(theta1 - theta2) * m2 * (omega2**2 * L2 + omega1**2 * L1 * np.cos(theta1 - theta2))) / (L1 * (2 * m1 + m2 - m2 * np.cos(2 * theta1 - 2 * theta2)))
+    dtdt2 = omega2   
+    dwdt2 = (2 * np.sin(theta1 - theta2) * (omega1**2 * L1 * (m1 + m2) + g * (m1 + m2) * np.cos(theta1) + omega2**2 * L2 * m2 * np.cos(theta1 - theta2))) / (L2 * (2 * m1 + m2 - m2 * np.cos(2 * theta1 - 2 * theta2)))    
+    return [dtdt1,dwdt1,dtdt2,dwdt2]
+
+sol = integrate.solve_ivp(f, t, i_init, t_eval = np.linspace(t[0],t[1],t[1] * 60))
+
+frames = t[1] * 60
+
+i0 = sol.y[0]
+i1 = sol.y[1]
+i2 = sol.y[2]
+i3 = sol.y[3]
+
+# find the x and y coordinates of m1 and m2
+x1 = L1 * np.sin(i0) + screenWidth/2
+y1 = screenHeight/2 - (- L1 * np.cos(i0))
+
+x2 = x1 + L2 * np.sin(i2)
+y2 = (y1 + L2 * np.cos(i2))
+
+i = 0
+new_pos = False
+mid_touch = False
+
+def trailjoin(x, y):
+    return np.array([[i, j] for i, j in zip(x, y)])
+
+trail1 = trailjoin(x1,y1)
+trail2 = trailjoin(x2,y2)
+
+while run:
+    
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+            
+    mouse_down = pygame.mouse.get_pressed()[0]
+    if mouse_down == True:
+        mouse_coords = pygame.mouse.get_pos()
+        if abs(mouse_coords[0] - (x1[i%frames])) < 10 and abs(mouse_coords[1] - (y1[i%frames])) < 10 or mid_touch == True:
+
+            mid_touch = True
+            x1 = [mouse_coords[0]/np.sqrt(x1[i%frames]**2+y1[i%frames]**2 * L1 for _ in range(frames)]
+            y1 = [mouse_coords[1]/np.sqrt(x1[i%frames]**2+y1[i%frames]**2 * L1 for _ in range(frames)]
+
+            i2 = [i2[i%frames] for _ in range(frames)]
+            i3 = [i3[i%frames] for _ in range(frames)]
+
+            x2 = x1 + L2 * np.sin(i2)
+            y2 = (y1 + L2 * np.cos(i2))
+
+            new_pos = True
+                
+#     if mouse_down == False and new_pos == True:
+#         i_init = [np.arcsin((mouse_coords[0] - screenWidth/2)/L1), 0, i2[i%frames], i3[i%frames]]
+#         sol = integrate.solve_ivp(f, t, i_init, t_eval = np.linspace(t[0],t[1],t[1] * 60))
+
+#         i0 = sol.y[0]
+#         i1 = sol.y[1]
+#         i2 = sol.y[2]
+#         i3 = sol.y[3]
+
+#         # find the x and y coordinates of m1 and m2
+#         x1 = L1 * np.sin(i0) + screenWidth/2
+#         y1 = screenHeight/2 - (- L1 * np.cos(i0))
+
+#         x2 = x1 + L2 * np.sin(i2)
+#         y2 = (y1 + L2 * np.cos(i2))
+
+#         i = 0
+#         pygame.time.delay(1)
+#         trail1 = trailjoin(x1,y1)
+#         trail2 = trailjoin(x2,y2)
+#         new_pos = False
+        
+        if abs(mouse_coords[0] - (x2[i%frames])) < 10 and abs(mouse_coords[1] - (y2[i%frames])) < 10:
+#             print(abs(mouse_coords[1] - (y2[i%frames])))
+#             print(np.sqrt((mouse_coords[0] - x1[i%frames])**2 + (y1[i%frames] - mouse_coords[1])**2))
+            print(np.sqrt((mouse_coords[0] - x1[i%frames])**2 + (y1[i%frames] - mouse_coords[1])**2))
+            if np.sqrt((mouse_coords[0] - x1[i%frames])**2 + (y1[i%frames] - mouse_coords[1])**2) <= L2:
+
+                x2 = [mouse_coords[0] for _ in range(frames)]
+                y2 = [mouse_coords[1] for _ in range(frames)]
+
+                i_init = [i0[i%frames], i1[i%frames], np.arcsin((mouse_coords[0] - x1[i%frames])/L2), 0]
+                sol = integrate.solve_ivp(f, t, i_init, t_eval = np.linspace(t[0],t[1],t[1] * 60))
+                
+                i0 = sol.y[0]
+                i1 = sol.y[1]
+                i2 = sol.y[2]
+                i3 = sol.y[3]
+
+                # find the x and y coordinates of m1 and m2
+                x1 = L1 * np.sin(i0) + screenWidth/2
+                y1 = screenHeight/2 - (- L1 * np.cos(i0))
+
+                x2 = x1 + L2 * np.sin(i2)
+                y2 = (y1 + L2 * np.cos(i2))
+
+                i = 0
+                pygame.time.delay(1)
+                trail1 = trailjoin(x1,y1)
+                trail2 = trailjoin(x2,y2)
+                
+    win.fill((0,0,0))
+    
+    if mouse_down == False:
+        if i%frames < 200:
+            pygame.draw.lines(win, (220,0,0), False, trail1[:i%frames+2])
+            pygame.draw.lines(win, (0,0,220), False, trail2[:i%frames+2])
+        else:
+            pygame.draw.lines(win, (220,0,0), False, trail1[i%frames-200:i%frames])
+            pygame.draw.lines(win, (0,0,220), False, trail2[i%frames-200:i%frames])
+
+        pygame.draw.line(win, (255,255,255), (screenWidth/2,screenHeight/2,), (x1[i%frames],y1[i%frames]), 2)
+        pygame.draw.line(win, (255,255,255), (x1[i%frames],y1[i%frames]), (x2[i%frames],y2[i%frames]), 2)
+
+        pygame.draw.circle(win, (255,0,0), (x1[i%frames],y1[i%frames]),10)
+        pygame.draw.circle(win, (0,0,255), (x2[i%frames],y2[i%frames]),10)
+
+        pygame.display.update()
+        
+    else:
+        if i%frames < 200:
+            pygame.draw.lines(win, (220,0,0), False, trail1[:i%frames+2])
+            pygame.draw.lines(win, (0,
+                                    0,220), False, trail2[:i%frames+2])
+        else:
+            pygame.draw.lines(win, (220,0,0), False, trail1[i%frames-200:i%frames])
+            pygame.draw.lines(win, (0,0,220), False, trail2[i%frames-200:i%frames])
+
+        pygame.draw.line(win, (255,255,255), (screenWidth/2,screenHeight/2,), (x1[i%frames],y1[i%frames]), 2)
+        pygame.draw.line(win, (255,255,255), (x1[i%frames],y1[i%frames]), (x2[i%frames],y2[i%frames]), 2)
+
+        pygame.draw.circle(win, (255,0,0), (x1[i%frames],y1[i%frames]),10)
+        pygame.draw.circle(win, (0,0,255), (x2[i%frames],y2[i%frames]),10)
+
+        pygame.display.update()
+    i += 1
+    pygame.time.delay(5)
+            
+pygame.quit()
